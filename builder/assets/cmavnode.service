@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple 
-ExecStart=/usr/local/bin/cmavnode -f /etc/cmvanode/uav.conf       
+ExecStart=/usr/local/bin/cmavnode -f /etc/cmavnode/uav.conf       
 Restart=on-failure
 RestartSec=2s
 
