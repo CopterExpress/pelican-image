@@ -39,7 +39,7 @@ if [[ -z ${TRAVIS_TAG} ]]; then IMAGE_VERSION="$(cd ${REPO_DIR}; git log --forma
 # IMAGE_VERSION="${TRAVIS_TAG:=$(cd ${REPO_DIR}; git log --format=%h -1)}"
 REPO_URL="$(cd ${REPO_DIR}; git remote --verbose | grep origin | grep fetch | cut -f2 | cut -d' ' -f1 | sed 's/git@github\.com\:/https\:\/\/github.com\//')"
 REPO_NAME="$(basename -s '.git' ${REPO_URL})"
-IMAGE_NAME="${REPO_NAME}_${IMAGE_VERSION}.img"
+IMAGE_NAME="${REPO_NAME}-${IMAGE_VERSION}.img"
 echo_stamp "IMAGE_NAME=${IMAGE_NAME}" "INFO"
 IMAGE_PATH="${IMAGES_DIR}/${IMAGE_NAME}"
 echo_stamp "IMAGE_PATH=${IMAGE_PATH}" "INFO"
@@ -50,16 +50,17 @@ get_image() {
   echo_stamp "BUILD_DIR=${BUILD_DIR}" "INFO"
   local RPI_ZIP_NAME=$(basename $2)
   echo_stamp "RPI_ZIP_NAME=${RPI_ZIP_NAME}" "INFO"
-  local RPI_IMAGE_NAME=$(echo ${RPI_ZIP_NAME} | sed 's/.zip//')
+  local RPI_IMAGE_NAME=$(echo ${RPI_ZIP_NAME} | sed 's/zip/img/')
+  #local RPI_IMAGE_NAME=$(echo ${RPI_ZIP_NAME} | sed 's/.zip//')
   echo_stamp "RPI_IMAGE_NAME=${RPI_IMAGE_NAME}" "INFO"
 
   if [ ! -e "${BUILD_DIR}/${RPI_ZIP_NAME}" ]; then
-    echo_stamp "Downloading original clever distribution"
+    echo_stamp "Downloading raspbian distribution"
     wget --progress=dot:giga -O ${BUILD_DIR}/${RPI_ZIP_NAME} $2
     echo_stamp "Downloading complete" "SUCCESS"
-  else echo_stamp "clever distribution already donwloaded" "INFO"; fi
+  else echo_stamp "Raspbian distribution is already downloaded" "INFO"; fi
 
-  echo_stamp "Unzipping clever distribution image" \
+  echo_stamp "Unzipping raspbian distribution image" \
   && unzip -p ${BUILD_DIR}/${RPI_ZIP_NAME} ${RPI_IMAGE_NAME} > $1 \
   && echo_stamp "Unzipping complete" "SUCCESS" \
   || (echo_stamp "Unzipping was failed!" "ERROR"; exit 1)
@@ -75,12 +76,16 @@ img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/init_rpi.sh' '/root/'
 img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/hardware_setup.sh' '/root/'
 img-chroot ${IMAGE_PATH} exec ${SCRIPTS_DIR}'/image-init.sh' ${IMAGE_VERSION} ${SOURCE_IMAGE}
 
+# Copy rules for fmu init
+img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/99-px4fmu.rules' '/lib/udev/rules.d/'
+
+# Copy service and config files for cmavnode
+img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/cmavnode.service' '/lib/systemd/system/'
+img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/uav.conf' '/etc/cmavnode/'
+
 # Install software and network
 img-chroot ${IMAGE_PATH} exec ${SCRIPTS_DIR}'/image-software.sh'
 img-chroot ${IMAGE_PATH} exec ${SCRIPTS_DIR}'/image-network.sh'
-
-# Copy rules for fmu init
-img-chroot ${IMAGE_PATH} copy ${SCRIPTS_DIR}'/assets/99-px4fmu.rules' '/lib/udev/rules.d/'
 
 # Shrink image
 img-resize ${IMAGE_PATH}

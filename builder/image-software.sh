@@ -49,20 +49,40 @@ my_travis_retry() {
   return $result
 }
 
-echo_stamp "Change repo owner to pi"
-chown -Rf pi:pi /home/pi/CleverSwarm/
-
 echo_stamp "Update apt cache"
 apt-get update -qq
 
 echo_stamp "Software installing"
-apt-get install -y \
-samba \
-chrony \
+apt-get install --no-install-recommends -y \
+screen=4.5.0-6 \
+byobu=5.112-1  \
+nmap=7.40-1 \
+lsof=4.89+dfsg-0.1 \
+dnsmasq=2.76-5+rpt1+deb9u1  \
+tmux=2.3-4 \
+git \
+cmake \
+libboost-system-dev \
+libboost-program-options-dev \
+libboost-thread-dev \
+libreadline-dev\
 && echo_stamp "Everything was installed!" "SUCCESS" \
 || (echo_stamp "Some packages wasn't installed!" "ERROR"; exit 1)
 
-echo_stamp "Install python libs"
-my_travis_retry pip install pause
+echo_stamp "Clone and build cmavnode" \
+&& cd /home/pi \
+&& git clone https://github.com/CopterExpress/cmavnode.git \
+&& cd cmavnode \
+&& git submodule update --init --recursive \
+&& mkdir build && cd build && cmake .. && make && make install \
+&& systemctl enable cmavnode \
+&& echo_stamp "Everything was built!" "SUCCESS" \
+|| (echo_stamp "Something went wrong!" "ERROR"; exit 1)
+
+echo_stamp "Change cmavnode repo owner to pi"
+chown -Rf pi:pi /home/pi/cmavnode/
+
+echo_stamp "Clean apt cache"
+apt-get clean -qq > /dev/null
 
 echo_stamp "End of software installation"
